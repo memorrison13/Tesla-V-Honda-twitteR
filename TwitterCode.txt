@@ -1,0 +1,167 @@
+#Copy and paste code into an r script
+
+install.packages("twitteR")
+install.packages("ROAuth")
+install.packages("digest")
+install.packages("RCurl")
+library(twitteR)
+library(ROAuth)
+library(digest)
+library(RCurl)
+
+
+options(RCurlOptions = list(cainfo = system.file(“CurlSSL”, “cacert.pem”, package = “RCurl”)))
+
+
+#necessary step for Windows
+
+download.file(url="http://curl.haxx.se/ca/cacert.pem", destfile="cacert.pem")
+
+
+#to get your consumerKey and consumerSecret see the twitteR documentation for instructions
+
+cred <- OAuthFactory$new(requestURL='https://api.twitter.com/oauth/request_token',
+                         accessURL='https://api.twitter.com/oauth/access_token',
+                         authURL='https://api.twitter.com/oauth/authorize',
+                         consumerKey='Your consumer key',
+                         consumerSecret='Your consumer secret')
+
+#download.file(url="http://curl.haxx.se/ca/cacert.pem", destfile="cacert")
+
+#necessary step for Windows
+
+cred$handshake(cainfo="cacert.pem")
+
+#save for later use for Windows
+
+save(cred, file="twitter authentication.Rdata")
+registerTwitterOAuth(cred)
+
+
+#Word Cloud for tesla
+
+tesla_tweets = searchTwitter("tesla", n=1000, lang="en",cainfo="cacert.pem")
+tesla_tweets
+
+tesla_text = sapply(tesla_tweets, function(x) x$getText())
+tesla_text
+
+install.packages("NLP")
+install.packages("tm")
+library(NLP) 
+library(tm)
+
+# create a corpus
+
+inspect(mach_corpus3)
+
+mach_corpus3 = Corpus(VectorSource(tesla_text))
+
+my_stopwords <- c('english', 'baby', 'gets', 'every', 'lol', 'haha', 'dont',
+                  'didnt', 'let', 'but', 'http', 'will', 'hey', 'like',
+                  'httptcozpjufbodq', 'httpstcojxurfngm', 'just', 'wont', 'uff', 'lukemitchell', 
+                  'popup', 'thats', 'still', 'can', 'a', 'get', 'ouch', 'mkbhd', 'dyno', 'teslas')
+mach_corpus3 <- tm_map(mach_corpus3, removeWords, my_stopwords)
+
+
+
+#Remove words if the above doesn't work
+
+tesla_corpus3 = tm_map(mach_corpus3, removeWords,"just")
+tesla_corpus3 = tm_map(tesla_corpus3, removeWords,"get")
+tesla_corpus3 = tm_map(tesla_corpus3, removeWords,"model")
+tesla_corpus3 = tm_map(tesla_corpus3, removeWords, "tcofvpflkw")
+tesla_corpus3 = tm_map(tesla_corpus3, removeWords, "lukemitchell")
+tesla_corpus3 = tm_map(tesla_corpus3, removeWords, "wont")
+tesla_corpus3 = tm_map(tesla_corpus3, removeWords, "why")
+tesla_corpus3 = tm_map(tesla_corpus3, removeWords, "teslas")
+tesla_corpus3 = tm_map(tesla_corpus3, removeWords, "hell")
+tesla_corpus3 = tm_map(tesla_corpus3, removeWords, "mkbhd")
+
+# create document term matrix applying some transformations
+
+tdm3 = TermDocumentMatrix(tesla_corpus3,
+                          control = list(removePunctuation = TRUE,
+                                         stopwords = c("tesla", stopwords("SMART"), stopwords("Catalan")),
+                                         removeNumbers = TRUE, tolower = TRUE, removeWords=TRUE, stripWhitespace = TRUE))
+
+# define tdm as matrix
+
+m = as.matrix(tdm3)
+
+# get word counts in decreasing order
+
+word_freqs = sort(rowSums(m), decreasing=TRUE) 
+
+# create a data frame with words and their frequencies
+
+dm3 = data.frame(word=names(word_freqs), freq=word_freqs)
+
+install.packages("RColorBrewer")
+install.packages("wordcloud")
+library(RColorBrewer)
+library(wordcloud)
+
+# plot wordcloud
+
+wordcloud(dm3$word, dm3$freq, random.order=FALSE, rot.per=.1, colors=brewer.pal(8, "Dark2"), min.freq = 5, max.words=200)
+#see if you get associations in word cloud or tm
+
+
+#finding word associations
+
+findAssocs(tdm3, c("elon", "spacex", "uber"), c(0.5, 0.5, 0.3))
+
+
+# save the image in png format
+
+png("teslaCloud.png", width=12, height=8, units="in", res=300)
+wordcloud(dm3$word, dm3$freq, random.order=FALSE, colors=brewer.pal(8, "Dark2"), max.words=200)
+dev.off()
+
+
+#Word Cloud for Honda
+
+honda_tweets = searchTwitter("honda", n=1000, lang="en",cainfo="cacert.pem")
+honda_tweets
+
+honda_text = sapply(honda_tweets, function(x) x$getText())
+honda_text
+
+# create a corpus
+mach_corpus2 = Corpus(VectorSource(honda_text))
+my_stopwords <- c(stopwords('english'), 'baby', 'gets', 'every', 'lol', 'haha', 'dont',
+                  'didnt', 'let', 'but', 'http', 'will', 'hey', 'like',
+                  'httptcozpjufbodq', 'httpstcojxurfngm', 'brat', 'bidaddo', 'put', 'cbr', 'bia', 'e', 'http',
+                  'gotta', 'getting', 'that', 'just')
+
+mach_corpus2 <- tm_map(mach_corpus2, removeWords, my_stopwords)
+
+
+# create document term matrix applying some transformations
+tdm2 = TermDocumentMatrix(mach_corpus2,
+                          control = list(removePunctuation = TRUE,
+                                         stopwords = c("honda", stopwords("english")),
+                                         removeNumbers = TRUE, tolower = TRUE, removeWords=TRUE))
+
+# define tdm as matrix
+
+m = as.matrix(tdm2)
+
+# get word counts in decreasing order
+
+word_freqs = sort(rowSums(m), decreasing=TRUE) 
+
+# create a data frame with words and their frequencies
+
+dm2 = data.frame(word=names(word_freqs), freq=word_freqs)
+
+# plot wordcloud
+
+wordcloud(dm2$word, dm2$freq, random.order=FALSE, rot.per=.1, colors=brewer.pal(8, "Dark2"),min.freq=10, max.words=200)
+
+# save the image in png format
+
+png("hondaCloud.png", width=12, height=8, units="in", res=300)
+wordcloud(dm2$word, dm2$freq, random.order=FALSE, colors=brewer.pal(8, "Dark2"), max.words=200)
+dev.off()
